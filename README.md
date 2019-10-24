@@ -18,29 +18,47 @@ Hand outline, center of moments and vectors to tips of fingers
 
 ### Manual
 #### Video
-##### Camera {ip, nativ}
+* Camera {ip, nativ}
 video input channel. ip for wifi camera (like phone) native for capturedevice(0) (laptop webcam)
+* ip
 
-**ip** -  if Camera=ip, set this to address
-**Start/Stop** to start streaming (Notes: tested only with ip cam)
+if Camera=ip, set this to address
+* Start/Stop
+
+to start streaming (Notes: tested only with ip cam)
 #### Background
-##### BG method: {avgbbox, histbp}
-background removal method
+* BG method: {avgbbox, histbp}
 
-** avgbbox** - calculate initial background, update global background with dynamic averaging outside bbox
-** histbp**  - histogram backpropagation. After hand initial detection, create base histogram. Threshold the color probability map of bbox given base histogram
-##### BG TH {binary, otsu} - Background threshold. 
-binary val??
-otsu - Otsu method for threshold (2-mean clustering)
+background removal method
+  - avgbbox
+  
+  calculate initial background, update global background with dynamic averaging outside bbox
+  - histbp
+  
+  histogram backpropagation. After hand initial detection, create base histogram. Threshold the color probability map of bbox given base histogram
+* BG TH {binary, otsu}
+
+Background threshold. 
+  - binary val??
+  - otsu
+  
+  Otsu method for threshold (2-mean clustering)
 #### Tracking    
-##### Tracking method: {csrt, mosse, kcf, static, simple}
+* Tracking method: {csrt, mosse, kcf, static, simple}
+
 Tracking initializes after hand is detected
-**csrt,  mosse and kcf**
+
+  - csrt,  mosse and kcf
+  
 openCV implemetation. bbox (bounding box) updated dynamically
-**static**
-bbox is limited to to initial area
-**simple**
-bbox is updated with current hand position
+
+  - static
+  
+bbox is limited to to initial area but the limits of the hand are dynamically updated
+
+  - simple
+  
+bbox is updated with current hand position. Implemetation of simple tracker
  
 IMPORTANT! 
   Start 'Video' BEFORE 'Tracking'. 
