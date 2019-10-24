@@ -7,7 +7,8 @@ run:
   handTracker_gui.handTracker_gui()
 
 description
-  
+![screenshot of handTracker before hand detection]
+(https://github.com/aviadba/handTracker/screenshots/init_tracking.png)
 Usage:
   
   Video
