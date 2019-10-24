@@ -17,6 +17,8 @@ class handTracker_gui():
         self.video_sources = {'ip', 'native'}
         self.default_ip = r'http://10.0.0.104:8080'  # add '/shot.jpg' for capture
         self.bg_methods = {'avgbbox', 'histbp'}  # background elimination methods
+        self.bg_th = {'binary', 'otsu'}  # background TH methods
+        self.tracking_methods = {'static', 'simple', 'mosse', 'kcf', 'csrt'}
         self.is_capture = False  # flag for video streaming (required for toggle)
         self.is_tracking = False  # Flag for tracking
         self.delay = 15
@@ -67,7 +69,13 @@ class handTracker_gui():
         self.bg_method_var.set(list(self.bg_methods)[0])  # set the default option
         bg_methods_select_menu = tk.OptionMenu(background_frame, self.bg_method_var, *self.bg_methods)
         bg_methods_select_menu.grid(row=1, column=1, sticky='nsew', pady=5)
-
+        # background thresholding methods
+        bg_TH_label = tk.Label(background_frame, text="BG TH")
+        bg_TH_label.grid(row=2, column=0, sticky='nsew', padx=5, pady=5)
+        self.bg_th_var = tk.StringVar(self.root)
+        self.bg_th_var.set(list(self.bg_th)[0])  # set the default option
+        bg_th_select_menu = tk.OptionMenu(background_frame, self.bg_th_var, *self.bg_th)
+        bg_th_select_menu.grid(row=2, column=1, sticky='nsew', pady=5)
 
         # tracking subframe
         tracking_frame = tk.LabelFrame(control_frame, text="Tracking")
@@ -75,10 +83,18 @@ class handTracker_gui():
         # toggle tracking
         toggle_tracking_b = tk.Button(tracking_frame, text="Start/Stop", command=self.gui_toggle_tracking)
         toggle_tracking_b.grid(row=0, column=0, sticky='nsw', padx=5, pady=5)
+        trk_method_label = tk.Label(tracking_frame, text="Tracking method")
+        trk_method_label.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
+        self.tracking_method_var = tk.StringVar(self.root)
+        self.tracking_method_var.set(list(self.tracking_methods)[0])  # set the default option
+        tracking_methods_select_menu = tk.OptionMenu(tracking_frame,
+                                                     self.tracking_method_var,
+                                                     *self.tracking_methods)
+        tracking_methods_select_menu.grid(row=1, column=1, sticky='nsew', pady=5)
         # show base frame
         self.show_bbox_var = tk.IntVar()
         toggle_bbox = tk.Checkbutton(tracking_frame, text="Show bbox", variable=self.show_bbox_var)
-        toggle_bbox.grid(row=1, column=0, sticky='nsw', padx=5, pady=5)
+        toggle_bbox.grid(row=2, column=0, sticky='nsw', padx=5, pady=5)
 
 
 
@@ -150,8 +166,9 @@ class handTracker_gui():
             ret, img = self.cap.read()
             if ret:
                 processed = self.tracker.process_frame(img,
-                                                       background=self.bg_method_var.get())
-                # draw square on image
+                                                       bbox=self.tracking_method_var.get(),
+                                                       background=self.bg_method_var.get(),
+                                                       th_method=self.bg_th_var.get())
                 self.tracker.drawbbox(img)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 self.full_frame_image = ImageTk.PhotoImage(image=Image.fromarray(img),
