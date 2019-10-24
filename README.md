@@ -8,16 +8,13 @@ run:
 
 description
 GUI after tracking initialization. Trigger area framed in green
-![screenshot of handTracker before hand detection]
-(https://github.com/aviadba/handTracker/blob/master/screenshots/init_tracking.png)
+![screenshot of handTracker before hand detection](https://github.com/aviadba/handTracker/blob/master/screenshots/init_tracking.png)
 
 Hand tracking (blue) frame
-![screenshot of handTracker tracking]
-(https://github.com/aviadba/handTracker/blob/master/screenshots/tracking.png)
+![screenshot of handTracker tracking](https://github.com/aviadba/handTracker/blob/master/screenshots/tracking.png)
 
 Shows hand outline, center of moments and lines to tips of fingers
-![screenshot of handTracker finger detection]
-(https://github.com/aviadba/handTracker/blob/master/screenshots/finger_detection.png)
+![screenshot of handTracker finger detection](https://github.com/aviadba/handTracker/blob/master/screenshots/finger_detection.png)
 
 Usage:
   
