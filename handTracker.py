@@ -37,10 +37,11 @@ class Handtracker:
                                'area': None,
                                'centerxy':None,
                                'rect':None,
-                               'finger_count':None}
+                               'finger_count':None,
+                               'finger_coors':None}
 
     # single frame process wrapper
-    def process_frame(self, img, bbox='static', background='avgbbox', th_method='binary', bin_th=30):
+    def process_frame(self, img, bbox='static', background='avgbbox', det_method='angle', th_method='binary', bin_th=30):
         """wrapper for all HandTracker outputs
         steps: 1. get image 2. detect roi using tracker and previous background 3. detect hand
             3. update background using 4. create images for display
@@ -52,6 +53,8 @@ class Handtracker:
                         csrt - Discriminative correlation filter
                     background {'avgbbox'} - background removal mode:
                         avgbbox-average of bounding box
+                    det_method {'angle', 'distance'} - finger and hand detection method selection of unique fingers by
+                    angle or by euclidean distance
                     th_method {'binary', 'otsu'} - threshold method binary (must also give bin_th) or otsu method
                     bin_th: threshold value (for binary threshold)
                 """
@@ -67,11 +70,11 @@ class Handtracker:
         else:
             (x, y, w, h) = self.bbox
         if background == 'histbp' and self.hand_detected_flag:
-            roi = self.remove_background_histbp(method=th_method, th=30)
+            roi = self.remove_background_histbp()
         else:
             roi = self.remove_background_avgbbox(method=th_method, th=bin_th)
         if np.any(roi):  # bbox contains non background
-            ret, roi = self.detect_hand(roi)
+            ret, roi = self.detect_hand(roi, det_method=det_method)
             # bbox refinment
             if ret:
                 (x, y, w, h) = self.tracking_state['rect']
@@ -141,6 +144,7 @@ class Handtracker:
         # grab current frame from area
         img = self.img.copy()
         (x, y, w, h) = self.bbox
+        kernel = np.ones((5, 5), np.uint8)
         if self.bg['avg'][0] < self.bg['avg'][1]:  # continue collection of average (full) background images
             # grab 10 images for background
             bg = cv2.GaussianBlur(img, (5, 5), 0).astype('float')
@@ -163,7 +167,7 @@ class Handtracker:
                 ret, mask = cv2.threshold(no_bg_frame_gw, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                 if ret < th:
                     mask = np.zeros_like(mask)
-            # process th_image to clean signal
+                    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
             th_img = cv2.bitwise_and(no_bg_frame, no_bg_frame, mask=mask)
             return th_img
         else:
@@ -182,15 +186,14 @@ class Handtracker:
                 ret, mask = cv2.threshold(no_bg_frame_gw, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                 if ret < th:
                     mask = np.zeros_like(mask)
+                    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
             th_img = cv2.bitwise_and(no_bg_frame, no_bg_frame, mask=mask)
             return th_img
 
-    def remove_background_histbp(self, method='binary', th=50):
+    def remove_background_histbp(self):
         """remove background by calculating the 2dhist backprojection of the tracked palm
         Do not call before hand_detected_flag
         Parameters
-            method {'binary', 'otsu'} threshold method
-                th = Threshold value for binary threshold
         """
         if self.bg['roihist'][3] is None:  #[0, 0, 10, 0]}  # x_center, y_center, size, hist
             # get hand coordinates
@@ -204,8 +207,16 @@ class Handtracker:
             self.bg['roihist'][1] = sample_y
             hsv = self.img[sample_y:sample_y+2*offset, sample_x:sample_x+2*offset].copy()
             hsv = cv2.cvtColor(hsv, cv2.COLOR_BGR2HSV)
-            # calculating hand center and normalize
+            # calculating HueXSaturation 2d hist
             roihist = cv2.calcHist([hsv], [0, 1], None, [180, 256], [0, 180, 0, 256])
+            roihist_copy = roihist.copy()
+            roihist_1d = cv2.calcHist([hsv], [0], None, [180], [0, 180])
+            cv2.normalize(roihist_1d, roihist_1d, 0, 255, cv2.NORM_MINMAX)
+            self.roihist_1d = roihist_1d
+            cv2.normalize(roihist_copy, roihist_copy, 0, 255, cv2.NORM_MINMAX)
+            self.roihist = roihist_copy
+            # roihist = cv2.GaussianBlur(src=roihist, ksize=(11,3), sigmaX=5, sigmaY=5)
+            roihist = cv2.GaussianBlur(src=roihist, ksize=(11,5), sigmaX=10, sigmaY=5)
             # normalize the histogram
             cv2.normalize(roihist, roihist, 0, 255, cv2.NORM_MINMAX)
             self.bg['roihist'][3] = roihist
@@ -220,19 +231,18 @@ class Handtracker:
             # Convolve with circular disc
             disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
             cv2.filter2D(dst, -1, disc, dst)
-            if method == 'binary':
-                ret, mask = cv2.threshold(dst, 10, 255, cv2.THRESH_BINARY)
-            elif method == 'otsu':
-                ret, mask = cv2.threshold(dst, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-                if ret < th:
-                    mask = np.zeros_like(mask)
-            # TODO morphological operations to improve the image
+            # if method == 'binary':
+            ret, mask = cv2.threshold(dst, 1, 255, cv2.THRESH_BINARY)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
             th_img = cv2.bitwise_and(target, target, mask=mask)
             return th_img
 
     # hand detection
-    def detect_hand(self, img, th=10000):
+    def detect_hand(self, img, det_method='angle', th=10000):
         """Detect fingers
+        PArameters
+            det_method {'angle', 'distance'}- detection method
         Returns (bool, post_Detection image)
 
             """
@@ -264,9 +274,6 @@ class Handtracker:
             h = min(h, self.img.shape[0]-y)
             # update to tracked area rect
             self.tracking_state['rect'] = [x, y, w, h]
-            # find angle elipse (direction)
-            # (x_ellipse, y_ellipse), (MA, ma), angle_ellipse = cv2.fitEllipse(palm)
-
             # calculate center of mass (center of hand)
             center_x = int(M["m10"] / M["m00"])
             center_y = int(M["m01"] / M["m00"])
@@ -278,25 +285,29 @@ class Handtracker:
 
             # filter points pointing downwards
             finger_points = hull_points[hull_points[:, :, 1] < center_y  , ...]
-            # filter points close to center
-            distant_bool = np.linalg.norm(finger_points-(center_x, center_y), axis=1) > equi_diameter/2
-
+            # sort finger points from left to right
+            finger_points = finger_points[finger_points[:,0].argsort()]
+            # filter points close to center using radius of equivalent circle
+            finger_norm = np.linalg.norm(finger_points - (center_x, center_y), axis=1)
+            distant_bool = finger_norm > equi_diameter/2
             finger_points = finger_points[distant_bool,...]
-
-            distance = finger_points[1:, :] - finger_points[:-1, :]
-            distance = np.linalg.norm((distance), axis=1)
-            dis_th = np.sqrt(M["m00"] / np.pi) / 2  # finger cluster distance th
-            finger = np.split(finger_points, np.argwhere(distance > dis_th).ravel() + 1)
-            finger = [np.max(a, axis=0) for a in finger]
-            defects = cv2.convexityDefects(palm, hull)
-
-
-
-            # find filter find local maxima
-            # clustering for fingers
-            # find direction (elipse AND fingers)
-            # find tips. select pointing forward
-            # connect center to tips
+            finger_norm = finger_norm[distant_bool, ...]
+            if det_method == 'distance':
+                distance = finger_points[1:, :] - finger_points[:-1, :]
+                distance = np.linalg.norm((distance), axis=1)
+                finger_points = np.hstack((finger_points, np.expand_dims(finger_norm, axis=1)))
+                fingers = np.split(finger_points, np.argwhere(distance > equi_diameter/2).ravel() + 1)
+            elif det_method == 'angle':
+                finger_points_vec = finger_points - self.tracking_state['centerxy']
+                # calculate angle between all adjecent fingers
+                finger_points_ang = np.arccos(np.diag(np.dot(finger_points_vec[1:, :],
+                                                             finger_points_vec[:-1, :].T) / \
+                                                      (np.linalg.norm(finger_points_vec[:-1, :], axis=1) * \
+                                                       np.linalg.norm(finger_points_vec[1:, :], axis=1))))
+                finger_points = np.hstack((finger_points, np.expand_dims(finger_norm, axis=1)))
+                fingers = np.split(finger_points, np.argwhere(finger_points_ang > 0.06 * np.pi).ravel() + 1)
+            fingers = [finger[np.argmax(finger[:, 2]), :2].astype(int) for finger in fingers]
+            #defects = cv2.convexityDefects(palm, hull)
             # draw
             retimg = np.zeros((h,w,3), dtype=('uint8'))
             # draw binary outline of ahnd
@@ -304,11 +315,12 @@ class Handtracker:
             # draw convex hull
             cv2.drawContours(retimg, [hull_points], 0, (255, 0, 0), 1)
             cv2.circle(retimg, (center_x, center_y), 5, (0,0,255), 1)
-            for finger_p in finger:  # draw lines to fingers
+            for finger_p in fingers: #fingers:  # draw lines to fingers
+                # cv2.circle(img=retimg, center=(int(finger_p[0]), int(finger_p[1])), radius=1, color=(0,0,255))
                 cv2.line(retimg, (center_x, center_y), tuple(finger_p),
                          (0,0,255), 1)
-            self.tracking_state['finger_count'] = len(finger)
-            # TODO define summary_dict
+            self.tracking_state['finger_count'] = len(fingers)
+            self.tracking_state['finger_coors'] = fingers
             return True, retimg
 
     # drawing functions

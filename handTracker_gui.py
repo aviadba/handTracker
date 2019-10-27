@@ -16,9 +16,10 @@ class handTracker_gui():
         # use 'ip' for wifi camera (cellphone), native for builtin camera
         self.video_sources = ['ip', 'native']
         self.default_ip = r'http://10.0.0.104:8080'  # add '/shot.jpg' for capture
-        self.bg_methods = ['avgbbox', 'histbp']  # background elimination methods
+        self.bg_methods = ['histbp', 'avgbbox']  # background elimination methods
         self.bg_th = ['binary', 'otsu']  # background TH methods
         self.tracking_methods = ['static', 'simple', 'mosse', 'kcf', 'csrt']
+        self.detection_methods = ['angle', 'distance']
         self.is_capture = False  # flag for video streaming (required for toggle)
         self.is_tracking = False  # Flag for tracking
         self.delay = 15
@@ -86,29 +87,31 @@ class handTracker_gui():
         trk_method_label = tk.Label(tracking_frame, text="Tracking method")
         trk_method_label.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
 
-        # hand detection subframe
-        detection_frame = tk.LabelFrame(control_frame, text="Detection")
-        detection_frame.grid(row=3, column=0, sticky='nsew', padx=5, pady=5)
-
-
         self.tracking_method_var = tk.StringVar(self.root)
         self.tracking_method_var.set(list(self.tracking_methods)[0])  # set the default option
         tracking_methods_select_menu = tk.OptionMenu(tracking_frame,
                                                      self.tracking_method_var,
                                                      *self.tracking_methods)
         tracking_methods_select_menu.grid(row=1, column=1, sticky='nsew', pady=5)
-        # show base frame
-        self.show_bbox_var = tk.IntVar()
-        toggle_bbox = tk.Checkbutton(tracking_frame, text="Show bbox", variable=self.show_bbox_var)
-        toggle_bbox.grid(row=2, column=0, sticky='nsw', padx=5, pady=5)
+        det_method_label = tk.Label(tracking_frame, text="Hand detection")
+        det_method_label.grid(row=2, column=0, sticky='nsew', padx=5, pady=5)
 
+        self.detection_method_var = tk.StringVar(self.root)
+        self.detection_method_var.set(list(self.detection_methods)[0])  # set the default option
+        detection_methods_select_menu = tk.OptionMenu(tracking_frame,
+                                                     self.detection_method_var,
+                                                     *self.detection_methods)
+        detection_methods_select_menu.grid(row=2, column=1, sticky='nsew', pady=5)
 
-
+        # hand detection subframe
+        detection_frame = tk.LabelFrame(control_frame, text="Detection")
+        detection_frame.grid(row=3, column=0, sticky='nsew', padx=5, pady=5)
 
         # full image frame
         self.full_image_frame = tk.LabelFrame(mainframe, text="Full image")
         self.full_image_frame.grid(row=0, column=1, sticky='nsew', padx=5, pady=5)
         # tracking view
+
         self.tracking_frame = tk.LabelFrame(mainframe, text="Tracking")
         self.tracking_frame.grid(row=0, column=2, sticky='nsew', padx=5, pady=5)
 
@@ -172,6 +175,7 @@ class handTracker_gui():
                 processed = self.tracker.process_frame(img,
                                                        bbox=self.tracking_method_var.get(),
                                                        background=self.bg_method_var.get(),
+                                                       det_method=self.detection_method_var.get(),
                                                        th_method=self.bg_th_var.get())
                 self.tracker.draw_tracking(img)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
