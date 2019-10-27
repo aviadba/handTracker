@@ -14,11 +14,11 @@ class handTracker_gui():
     def __init__(self):
         # define settings for gui
         # use 'ip' for wifi camera (cellphone), native for builtin camera
-        self.video_sources = {'ip', 'native'}
+        self.video_sources = ['ip', 'native']
         self.default_ip = r'http://10.0.0.104:8080'  # add '/shot.jpg' for capture
-        self.bg_methods = {'avgbbox', 'histbp'}  # background elimination methods
-        self.bg_th = {'binary', 'otsu'}  # background TH methods
-        self.tracking_methods = {'static', 'simple', 'mosse', 'kcf', 'csrt'}
+        self.bg_methods = ['avgbbox', 'histbp']  # background elimination methods
+        self.bg_th = ['binary', 'otsu']  # background TH methods
+        self.tracking_methods = ['static', 'simple', 'mosse', 'kcf', 'csrt']
         self.is_capture = False  # flag for video streaming (required for toggle)
         self.is_tracking = False  # Flag for tracking
         self.delay = 15
@@ -85,6 +85,12 @@ class handTracker_gui():
         toggle_tracking_b.grid(row=0, column=0, sticky='nsw', padx=5, pady=5)
         trk_method_label = tk.Label(tracking_frame, text="Tracking method")
         trk_method_label.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
+
+        # hand detection subframe
+        detection_frame = tk.LabelFrame(control_frame, text="Detection")
+        detection_frame.grid(row=3, column=0, sticky='nsew', padx=5, pady=5)
+
+
         self.tracking_method_var = tk.StringVar(self.root)
         self.tracking_method_var.set(list(self.tracking_methods)[0])  # set the default option
         tracking_methods_select_menu = tk.OptionMenu(tracking_frame,
@@ -108,7 +114,6 @@ class handTracker_gui():
 
         self.gui_display_stream()
         self.root.mainloop()
-
 
     def gui_toggle_capture(self):
         """Toggle video capture and display in GUI"""
@@ -158,7 +163,6 @@ class handTracker_gui():
         """
         self.tracker.reset_background()
 
-
     def gui_display_stream(self):
         """Auxilary function to display stream in GUI
         """
@@ -169,7 +173,7 @@ class handTracker_gui():
                                                        bbox=self.tracking_method_var.get(),
                                                        background=self.bg_method_var.get(),
                                                        th_method=self.bg_th_var.get())
-                self.tracker.drawbbox(img)
+                self.tracker.draw_tracking(img)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 self.full_frame_image = ImageTk.PhotoImage(image=Image.fromarray(img),
                                                            master=self.full_frame_canvas)
