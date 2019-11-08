@@ -124,12 +124,13 @@ class handTracker_gui():
             if self.v_source_var.get() == 'ip':
                 self.cap = cellPhoneCapture(self.ip_source.get() + '/shot.jpg')
             elif self.v_source_var.get() == 'native':
-                self.cap = cv2.VideoCapture(0)
+                self.cap = htVideoCapture()
             self.is_capture = True
             if self.debug:
                 print('capture on')
             # initialize canvas
             self.full_frame_canvas = tk.Canvas(self.full_image_frame, width=self.cap.x, height=self.cap.y)
+
             self.full_frame_canvas.grid(row=0, column=0, sticky='nswe')
         else:
             # toggle off

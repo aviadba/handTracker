@@ -1,6 +1,7 @@
 """Utilities for running HandTracker and HandTrackerGUI
 contains:
-cellPhoneCapture - used to display cell phone camera images as defined by ip Android App"""
+cellPhoneCapture - used to display cell phone camera images as defined by ip Android App
+htVideoCapture - inherits from cv2.VideoCapture and add attributes for compatibility"""
 
 import cv2
 import numpy as np
@@ -54,3 +55,23 @@ class cellPhoneCapture:
             if cv2.waitKey(1) & 0xFF == 27:
                 cv2.destroyAllWindows()
                 break
+
+
+class htVideoCapture(cv2.VideoCapture):
+    """hand tracker VideoCapture adds attributes x and y (width and height) for compatability with cellPhoneCapture"""
+    def __init__(self):
+        cv2.VideoCapture.__init__(self, 0)
+        self.x = int(self.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.y = int(self.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    def read(self):
+        """support flipping image for compatbility"""
+        ret, img = super().read()
+        if ret:
+            img = cv2.flip(img, 1)
+            return ret, img
+        else:
+            return ret, None
+
+
+
